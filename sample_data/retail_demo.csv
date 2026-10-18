@@ -1,0 +1,14 @@
+date,description,category,amount,type,currency,status,paid_at,customer
+2025-01-04,Daily sales batch 1,revenue,1240,income,USD,paid,2025-01-04,
+2025-01-05,Daily sales batch 2,revenue,1450,income,USD,paid,2025-01-05,
+2025-01-11,Daily sales batch 3,revenue,1380,income,USD,paid,2025-01-11,
+2025-01-12,Daily sales batch 4,revenue,1620,income,USD,paid,2025-01-12,
+2025-01-18,Daily sales batch 5,revenue,990,income,USD,paid,2025-01-18,
+2025-01-19,Daily sales batch 6,revenue,1730,income,USD,paid,2025-01-19,
+2025-01-25,Daily sales batch 7,revenue,1810,income,USD,paid,2025-01-25,
+2025-01-26,Daily sales batch 8,revenue,2050,income,USD,paid,2025-01-26,
+2025-01-15,Spring inventory purchase,inventory,4500,expense,USD,paid,2025-01-15,Nimbus Wholesale
+2025-01-15,Display fixtures,operating_expenses,650,expense,USD,paid,2025-01-15,
+2025-01-31,Storefront rent,operating_expenses,1200,expense,USD,paid,2025-01-31,
+2025-01-31,POS subscription,operating_expenses,180,expense,USD,paid,2025-01-31,
+2025-01-31,Staff wages,labor,2100,expense,USD,paid,2025-01-31,

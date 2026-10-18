@@ -1,0 +1,54 @@
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+.eslintcache
+coverage/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite-journal
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Uploads / local data
+uploads/
+data/
+*.log
+logs/
+
+# Playwright
+playwright-report/
+test-results/
+.playwright/
+
+# puku-cli / agent artifacts
+.puku-cli/
+!.puku-cli/settings.json.template
+!.puku-cli/skills/
+!.puku-cli/rules/
+
+# Impeccable sketches
+.impeccable/sketches/*.tmp

@@ -1,0 +1,10 @@
+date,description,category,amount,type,currency,status,paid_at,customer
+2025-01-06,PO #2241 (Big Box Mart),revenue,12500,income,USD,pending,2025-02-05,Big Box Mart
+2025-01-13,PO #2242 (Big Box Mart),revenue,9800,income,USD,pending,2025-02-12,Big Box Mart
+2025-01-20,PO #2243 (Big Box Mart),revenue,14200,income,USD,pending,2025-02-19,Big Box Mart
+2025-01-27,PO #2244 (Big Box Mart),revenue,11200,income,USD,pending,2025-02-26,Big Box Mart
+2025-01-08,Manufacturer restock,inventory,8400,expense,USD,pending,2025-02-07,Acme Manufacturing
+2025-01-22,Manufacturer restock,inventory,7200,expense,USD,pending,2025-02-21,Acme Manufacturing
+2025-01-31,Warehouse lease,operating_expenses,2400,expense,USD,paid,2025-01-31,
+2025-01-31,Logistics contractor,operating_expenses,3500,expense,USD,paid,2025-01-31,
+2025-01-31,Admin staff,labor,1800,expense,USD,paid,2025-01-31,

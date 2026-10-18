@@ -1,0 +1,17 @@
+date,description,category,amount,type,currency,status,paid_at,customer
+2025-01-04,Day 1 sales,revenue,640,income,USD,paid,2025-01-04,
+2025-01-05,Day 2 sales,revenue,720,income,USD,paid,2025-01-05,
+2025-01-11,Day 3 sales,revenue,810,income,USD,paid,2025-01-11,
+2025-01-12,Day 4 sales,revenue,690,income,USD,paid,2025-01-12,
+2025-01-18,Day 5 sales,revenue,940,income,USD,paid,2025-01-18,
+2025-01-19,Day 6 sales,revenue,1020,income,USD,paid,2025-01-19,
+2025-01-25,Day 7 sales,revenue,1180,income,USD,paid,2025-01-25,
+2025-01-26,Day 8 sales,revenue,1230,income,USD,paid,2025-01-26,
+2025-01-08,Produce delivery,inventory,420,expense,USD,paid,2025-01-08,Fresh Fields
+2025-01-15,Produce delivery,inventory,460,expense,USD,paid,2025-01-15,Fresh Fields
+2025-01-22,Produce delivery,inventory,510,expense,USD,paid,2025-01-22,Fresh Fields
+2025-01-29,Produce delivery,inventory,490,expense,USD,paid,2025-01-29,Fresh Fields
+2025-01-31,Line cook labor,labor,2200,expense,USD,paid,2025-01-31,
+2025-01-31,Server labor,labor,1800,expense,USD,paid,2025-01-31,
+2025-01-31,Rent,operating_expenses,1200,expense,USD,paid,2025-01-31,
+2025-01-31,Utilities,operating_expenses,310,expense,USD,paid,2025-01-31,

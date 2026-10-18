@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Operate-mode design tokens — Disciplined Ledger.
+ * Restrained palette + one Committed accent. 1.2 type scale.
+ * All colors are RGB triples so Tailwind can apply alpha.
+ */
+:root {
+  --color-surface: 252 252 252;          /* near-white */
+  --color-surface-sunken: 246 246 247;   /* sidebar, table stripes */
+  --color-surface-raised: 255 255 255;   /* cards, dialogs */
+  --color-ink: 17 24 39;                 /* primary text */
+  --color-ink-muted: 75 85 99;           /* secondary text */
+  --color-ink-subtle: 156 163 175;       /* tertiary text, captions */
+  --color-ink-inverse: 255 255 255;
+  --color-line: 229 231 235;             /* hairline border */
+  --color-accent: 17 51 102;             /* Committed: deep navy, finance-coded */
+  --color-accent-hover: 11 36 73;
+  --color-accent-soft: 230 235 244;
+  --color-ok: 22 101 52;                 /* dark green for tabular positives */
+  --color-warn: 161 98 7;                /* dark amber */
+  --color-bad: 153 27 27;                 /* dark red */
+  --color-info: 29 78 216;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-surface: 16 17 21;
+    --color-surface-sunken: 12 13 16;
+    --color-surface-raised: 22 23 28;
+    --color-ink: 232 234 237;
+    --color-ink-muted: 170 175 184;
+    --color-ink-subtle: 130 134 142;
+    --color-ink-inverse: 17 24 39;
+    --color-line: 38 40 47;
+    --color-accent: 138 165 220;
+    --color-accent-hover: 168 187 226;
+    --color-accent-soft: 31 44 67;
+    --color-ok: 110 200 130;
+    --color-warn: 220 175 80;
+    --color-bad: 232 110 110;
+    --color-info: 138 165 220;
+  }
+}
+
+html,
+body {
+  background-color: rgb(var(--color-surface));
+  color: rgb(var(--color-ink));
+  font-family: var(--font-inter, "Inter"), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-numeric: tabular-nums;
+}
+
+*,
+*::before,
+*::after {
+  border-color: rgb(var(--color-line));
+}
+
+/* Focus ring (one style, always visible) */
+*:focus-visible {
+  outline: 2px solid rgb(var(--color-accent));
+  outline-offset: 2px;
+}
+
+/* Tabular numerals on data */
+.num,
+table,
+[data-tabular] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Print styles for decision reports */
+@media print {
+  .no-print,
+  nav,
+  aside {
+    display: none !important;
+  }
+  body {
+    background: white;
+    color: black;
+  }
+}

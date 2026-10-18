@@ -1,0 +1,10 @@
+date,description,category,amount,type,currency,status,paid_at,customer
+2025-01-08,Discovery workshop (Acme Inc),revenue,4200,income,USD,paid,2025-01-08,Acme Inc
+2025-01-15,Architecture engagement week 1,revenue,9000,income,USD,pending,2025-02-15,Acme Inc
+2025-01-22,Architecture engagement week 2,revenue,9000,income,USD,pending,2025-02-22,Acme Inc
+2025-01-29,Architecture engagement week 3,revenue,9000,income,USD,pending,2025-02-29,Acme Inc
+2025-01-10,Senior consultant,labor,6500,expense,USD,paid,2025-01-10,
+2025-01-10,Junior consultant,labor,3200,expense,USD,paid,2025-01-10,
+2025-01-15,Tools and licenses,operating_expenses,420,expense,USD,paid,2025-01-15,
+2025-01-31,Office lease,operating_expenses,1800,expense,USD,paid,2025-01-31,
+2025-01-31,Insurance,operating_expenses,250,expense,USD,paid,2025-01-31,

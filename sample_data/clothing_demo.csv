@@ -1,0 +1,12 @@
+date,description,category,amount,type,currency,status,paid_at,customer
+2025-01-05,Wholesale order #1042,revenue,4800,income,USD,paid,2025-01-05,Bluebird Apparel
+2025-01-12,Wholesale order #1043,revenue,6200,income,USD,paid,2025-01-12,Bluebird Apparel
+2025-01-19,Wholesale order #1044,revenue,5400,income,USD,pending,2025-02-19,Coastal Clothier
+2025-01-31,Cotton fabric roll,materials,1800,expense,USD,paid,2025-01-31,Textile Hub
+2025-01-31,Polyester blend,materials,950,expense,USD,paid,2025-01-31,Textile Hub
+2025-01-31,Sewing thread + notions,materials,210,expense,USD,paid,2025-01-31,Textile Hub
+2025-01-31,Cutting room labor,labor,2400,expense,USD,paid,2025-01-31,
+2025-01-31,Finishing labor,labor,1600,expense,USD,paid,2025-01-31,
+2025-01-31,Studio rent,operating_expenses,1500,expense,USD,paid,2025-01-31,
+2025-01-31,Utilities,operating_expenses,420,expense,USD,paid,2025-01-31,
+2025-01-31,Marketing,operating_expenses,300,expense,USD,paid,2025-01-31,
