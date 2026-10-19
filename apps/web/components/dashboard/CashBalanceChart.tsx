@@ -38,6 +38,7 @@ export function CashBalanceChart({
   minBuffer: number;
   onClickMonth?: (month: string) => void;
   hiddenSeries?: Set<string>;
+  onToggleSeries?: (name: string) => void;
 }) {
   const isVisible = (s: string) => !hiddenSeries?.has(s);
   return (

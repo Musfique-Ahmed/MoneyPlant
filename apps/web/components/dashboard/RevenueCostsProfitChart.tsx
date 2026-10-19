@@ -24,11 +24,13 @@ export function RevenueCostsProfitChart({
   currency,
   hiddenSeries,
   onClickMonth,
+  onToggleSeries,
 }: {
   data: RevenueCostsProfitPoint[];
   currency: string;
   hiddenSeries?: Set<string>;
   onClickMonth?: (month: string) => void;
+  onToggleSeries?: (name: string) => void;
 }) {
   const seriesVisible = (name: string) => !hiddenSeries?.has(name);
   return (
@@ -48,7 +50,7 @@ export function RevenueCostsProfitChart({
           contentStyle={tooltipStyle}
           labelStyle={tooltipLabelStyle}
         />
-        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Legend wrapperStyle={{ fontSize: 12 }} onClick={(o) => onToggleSeries?.(String(o.value ?? ""))} />
         {seriesVisible("Revenue") && (
           <Bar dataKey="revenue" name="Revenue" fill="rgb(var(--color-ok))" />
         )}

@@ -63,6 +63,7 @@ import { SensitivityChart } from "@/components/dashboard/SensitivityChart";
 import { ScenarioCompareChart } from "@/components/dashboard/ScenarioCompareChart";
 import { MonthlyTable } from "@/components/dashboard/MonthlyTable";
 import { MonthSidePanel } from "@/components/dashboard/MonthSidePanel";
+import { useTogglableSeries } from "@/components/dashboard/useTogglableSeries";
 
 /* -------------------------------------------------------------------------- */
 /*  Constants                                                                 */
@@ -107,6 +108,8 @@ export default function DashboardPage() {
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [compareScenarioId, setCompareScenarioId] = useState<string>("");
   const [explainOn, setExplainOn] = useState<boolean>(false);
+  const rvcpSeries = useTogglableSeries();
+  const cashSeries = useTogglableSeries();
 
   /* --- Data fetching ---------------------------------------------------- */
 
@@ -480,6 +483,8 @@ export default function DashboardPage() {
                     total_costs: toNumber(m["total_costs"]),
                     operating_profit: toNumber(m["operating_profit"]),
                   }))}
+                  hiddenSeries={rvcpSeries.hidden}
+                  onToggleSeries={rvcpSeries.toggle}
                   onClickMonth={(label) => setSelectedMonth(label)}
                 />
               </AccessibleChart>
@@ -514,6 +519,7 @@ export default function DashboardPage() {
                     closing_cash: toNumber(String(m["closing_cash"] ?? "0")),
                     is_negative: Boolean(m["is_negative"]),
                   }))}
+                  hiddenSeries={cashSeries.hidden}
                   minBuffer={toNumber(String(cashVisual.evidence?.min_buffer ?? "0"))}
                   onClickMonth={(label) => setSelectedMonth(label)}
                 />
