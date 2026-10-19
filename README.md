@@ -8,6 +8,9 @@ A privacy-aware financial decision copilot for small and medium-sized enterprise
 
 - **CSV / XLSX import** with column-mapping, per-row validation, and import history.
 - **Financial dashboard** driven by backend-computed metrics — never fabricated.
+- **Dashboard interpretations** — every visual (KPI strip, revenue/costs/profit, cash balance, profit–cash gap, cost breakdown, sensitivity, scenario compare, alerts, financing) has a deterministic, pure-function text interpretation next to it. No LLM by default. The interpretation is testable: every quoted figure is verifiable in the matching evidence dict.
+- **Cash-flow alerts** — deterministic monthly trajectory from imported transactions. Five alert codes (NEGATIVE_CASH, LOW_BUFFER, SHORT_RUNWAY, PROFITABLE_BUT_CASH_POOR, SHARP_DROP). Text-label severities (Critical / Warning / Info), no colour-only signalling.
+- **Financing-option matching** — a SYNTHETIC catalog of 5 illustrative products matched against the business's revenue, runway, and projected shortfall. Hard eligibility + DSCR floor override ranking. Not a credit decision.
 - **Production and operating simulator** with industry-specific inputs.
 - **Scenario save, rerun, compare** with versioned, reproducible results.
 - **Rule-based decision engine** with hard-constraint precedence.
@@ -135,6 +138,10 @@ The script runs: backend install → alembic upgrade → pytest → frontend ins
 
 | Layer | File | What it proves |
 |---|---|---|
+| Alerts | `backend/tests/test_alerts.py` | Each rule's trigger and non-trigger, boundary values, empty-input case. |
+| Financing | `backend/tests/test_financing.py` | No-shortfall sentinel, hand-calculated annuity, DSCR boundary, ineligible product, ranking order, Decimal precision. |
+| Dashboard insights | `backend/tests/test_insights.py` | Each visual's trigger and edge case (no data, one month, zero revenue, all-negative cash, flat series). Plus the invariant that every figure quoted in a sentence is present in the matching evidence dict. |
+| Frontend Zod mirrors | `apps/web/lib/schemas.test.ts` | `Alert`, `AlertsResponse`, `FinancingMatch`, `FinancingOptionsResponse`, `DashboardVisual`, `DashboardInsights` parse correctly and reject unknowns. |
 | Money primitives | `backend/tests/test_money.py` | Decimal arithmetic, currency rounding, division-by-zero semantics. |
 | Periods | `backend/tests/test_periods.py` | Monthly half-open intervals, year rollovers, month arithmetic, leap-year clamping. |
 | Metrics | `backend/tests/test_metrics.py` | Revenue/cost/operating-profit categorization, cash vs. profit timing, runway. |
@@ -143,6 +150,7 @@ The script runs: backend install → alembic upgrade → pytest → frontend ins
 | Invariants | `backend/tests/test_invariants.py` | Closing-cash identity, sold ≤ produced, revenue = units × price. |
 | Simulation | `backend/tests/test_simulation.py` | End-to-end through the runner: manufacturing, retail, service, wholesale, food. |
 | Rules | `backend/tests/test_rules.py` | Each rule's status transitions; hard-constraint precedence. |
+| Dashboard interactivity | `apps/web/e2e/j-dashboard.spec.ts` | Loads dashboard, picks a business, sees KPI strip + synthetic banner + table-view + Print button. Requires both servers running. |
 | Laya | `backend/tests/test_laya.py` | Unavailable states; answer normalization; state isolation. |
 | LLM | `backend/tests/test_llm.py` | Health probe is real, JSON extraction is robust, bad responses are "unavailable". |
 | Ingestion | `backend/tests/test_ingestion.py` | CSV preview, suggest_mapping, validation issue severity. |
@@ -186,6 +194,10 @@ See [`docs/AI_AND_PRIVACY.md`](docs/AI_AND_PRIVACY.md). Highlights:
 
 ## Known limitations
 
+- **Synthetic financing catalog.** The 5 products are illustrative placeholders; eligibility thresholds and APRs are not real lender offers. UI is labelled `Illustrative products. Not a credit decision.`
+- **Financing affordability = simple annuity + DSCR.** No fees, no tax effect, no credit score, no covenant modelling. The matcher answers "could the monthly payment fit?" — nothing more.
+- **Dashboard sensitivity is observed-period, one-at-a-time.** It scales monthly inflows and outflows independently by ±25% / ±10% on the observed transactions. It is not a forecasting model and does not re-run the full scenario simulator. For full sensitivity, open the **Simulator** page and run a saved scenario with sensitivity enabled.
+- **Dashboard insights do not cross months.** The interpretation is computed over the [period_start, period_end_exclusive) window you select; pick a different range to test different months. No missing-data fabrication: an empty period returns an edge-case visual.
 - No authentication in MVP — single-tenant. Do not expose on the public internet without adding auth.
 - No statistical forecasting. Sensitivity is deterministic one-at-a-time, clearly labelled.
 - No multi-currency conversion. Mixed-currency imports are quarantined.

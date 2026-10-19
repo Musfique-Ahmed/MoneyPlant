@@ -11,6 +11,7 @@ import {
   GitCompare,
   ShieldCheck,
   Sparkles,
+  HandCoins,
   Settings,
   Sprout,
 } from "lucide-react";
@@ -20,6 +21,7 @@ const NAV: Array<{ href: string; label: string; icon: ReactNode }> = [
   { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={16} /> },
   { href: "/data", label: "Data", icon: <Database size={16} /> },
   { href: "/simulator", label: "Simulator", icon: <Calculator size={16} /> },
+  { href: "/financing", label: "Financing", icon: <HandCoins size={16} /> },
   { href: "/compare", label: "Compare", icon: <GitCompare size={16} /> },
   { href: "/decisions", label: "Decisions", icon: <ShieldCheck size={16} /> },
   { href: "/assistant", label: "Assistant", icon: <Sparkles size={16} /> },

@@ -238,3 +238,138 @@ export const Explanation = z.object({
   limitations: z.array(z.string()),
   raw: z.record(z.unknown()).default({}),
 });
+
+// ---------------------------------------------------------------------------
+// Alerts (mirrors backend/app/schemas/alerts.py)
+// ---------------------------------------------------------------------------
+
+export const AlertConfig = z.object({
+  low_buffer_months: z.string(),
+  short_runway_warning_months: z.string(),
+  short_runway_critical_months: z.string(),
+  sharp_drop_pct: z.string(),
+});
+
+export const Alert = z.object({
+  code: z.string(),
+  severity: z.enum(["Critical", "Warning", "Info"]),
+  month: z.number().int().nullable(),
+  message: z.string(),
+  evidence: z.record(z.unknown()).default({}),
+});
+
+export const MonthlyCashPoint = z.object({
+  month_index: z.number().int(),
+  opening_cash: z.string(),
+  net_cash_movement: z.string(),
+  closing_cash: z.string(),
+});
+
+export const AlertsResponse = z.object({
+  business_id: z.string(),
+  currency: Currency,
+  horizon_months: z.number().int(),
+  runway_months: z.string().nullable(),
+  operating_profit: z.string(),
+  monthly_cash: z.array(MonthlyCashPoint),
+  config: AlertConfig,
+  alerts: z.array(Alert),
+  source: z.string(),
+  note: z.string(),
+});
+
+// ---------------------------------------------------------------------------
+// Financing (mirrors backend/app/schemas/financing.py)
+// ---------------------------------------------------------------------------
+
+export const FinancingCatalogEntry = z.object({
+  id: z.string(),
+  name: z.string(),
+  type: z.string(),
+  min_amount: z.string(),
+  max_amount: z.string(),
+  min_months_operating: z.number().int(),
+  min_avg_monthly_revenue: z.string(),
+  max_term_months: z.number().int(),
+  indicative_annual_rate: z.string(),
+  suitable_use_cases: z.array(z.string()),
+  synthetic: z.boolean(),
+});
+
+export const FinancingCatalog = z.object({
+  products: z.array(FinancingCatalogEntry),
+  synthetic: z.boolean(),
+  disclaimer: z.string(),
+});
+
+export const EligibilityCheck = z.object({
+  name: z.string(),
+  passed: z.boolean(),
+  requirement: z.string(),
+  actual: z.string(),
+});
+
+export const FinancingMatch = z.object({
+  product_id: z.string(),
+  product_name: z.string(),
+  product_type: z.string(),
+  label: z.enum(["recommended", "possible", "not_recommended"]),
+  fit_reasons: z.array(z.string()),
+  unmet_criteria: z.array(z.string()),
+  checks: z.array(EligibilityCheck),
+  indicative_annual_rate: z.string(),
+  requested_amount: z.string(),
+  term_months: z.number().int(),
+  monthly_repayment: z.string(),
+  dscr: z.string(),
+  synthetic: z.boolean(),
+});
+
+export const NoFinancingNeeded = z.object({
+  reason: z.string(),
+  minimum_projected_cash: z.string(),
+  funding_need: z.string(),
+});
+
+export const FinancingOptionsResponse = z.object({
+  business_id: z.string(),
+  currency: Currency,
+  funding_need: z.string(),
+  minimum_projected_cash: z.string(),
+  avg_monthly_revenue: z.string(),
+  monthly_operating_profit: z.string(),
+  months_operating: z.number().int(),
+  catalog: FinancingCatalog,
+  matches: z.array(FinancingMatch),
+  no_financing_needed: NoFinancingNeeded.nullable(),
+  note: z.string(),
+});
+
+
+// ---------------------------------------------------------------------------
+// Dashboard insights (mirror of backend/app/schemas/insights.py)
+// ---------------------------------------------------------------------------
+
+export const DashboardVisual = z.object({
+  visual_id: z.string(),
+  title: z.string(),
+  what_it_shows: z.string(),
+  what_to_notice: z.array(z.string()),
+  why_it_matters: z.string(),
+  evidence: z.record(z.unknown()),
+});
+export type DashboardVisualT = z.infer<typeof DashboardVisual>;
+
+export const DashboardInsights = z.object({
+  business_id: z.string(),
+  currency: z.string(),
+  period_start: z.string(),
+  period_end_exclusive: z.string(),
+  calculation_timestamp: z.string(),
+  note: z.string(),
+  visuals: z.array(DashboardVisual),
+  alerts_count: z.number().int().nonnegative(),
+  financing_counts: z.record(z.number().int().nonnegative()),
+  summary: z.record(z.unknown()),
+});
+export type DashboardInsightsT = z.infer<typeof DashboardInsights>;

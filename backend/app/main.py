@@ -70,9 +70,12 @@ def create_app() -> FastAPI:
 
     # Mount routers (each is added in its own phase).
     from app.api.ai import router as ai_router
+    from app.api.alerts import router as alerts_router
     from app.api.businesses import router as businesses_router
     from app.api.decisions import router as decisions_router
+    from app.api.financing import router as financing_router
     from app.api.imports import router as imports_router
+    from app.api.insights import router as insights_router
     from app.api.scenarios import router as scenarios_router
     from app.api.transactions import router as transactions_router
 
@@ -82,6 +85,9 @@ def create_app() -> FastAPI:
     app.include_router(scenarios_router, prefix="/api")
     app.include_router(decisions_router, prefix="/api")
     app.include_router(ai_router, prefix="/api")
+    app.include_router(alerts_router, prefix="/api")
+    app.include_router(financing_router, prefix="/api")
+    app.include_router(insights_router, prefix="/api")
 
     @app.exception_handler(Exception)
     async def unhandled(_request, exc: Exception) -> JSONResponse:
