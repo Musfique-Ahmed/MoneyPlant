@@ -15,6 +15,7 @@ import {
   Settings,
   Sprout,
 } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const NAV: Array<{ href: string; label: string; icon: ReactNode }> = [
   { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={16} /> },
@@ -62,7 +63,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div>MoneyPlant · single-tenant MVP</div>
         </div>
       </aside>
-      <main className="min-w-0">{children}</main>
+      <div className="flex min-h-screen min-w-0 flex-col">
+        <div className="flex h-14 items-center justify-end gap-2 border-b border-line bg-surface px-6">
+          <ThemeToggle />
+        </div>
+        <main className="min-w-0 flex-1">{children}</main>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { apiGet, apiPatch, apiPost } from "@/lib/api";
 import { Business, Currency, Industry, ProviderHealth } from "@/lib/schemas";
@@ -14,15 +14,18 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/ui/States";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { formatDateISO, formatMoney } from "@/lib/format";
 import { useWorkspace } from "@/components/WorkspaceContext";
+import { useTheme } from "next-themes";
 import {
   Building2,
   Eye,
   EyeOff,
   Lock,
+  Monitor,
+  Moon,
   Server,
   Sparkles,
+  Sun,
   TriangleAlert,
-  Plug,
   CheckCircle2,
   XCircle,
 } from "lucide-react";
@@ -63,7 +66,7 @@ export default function SettingsPage() {
         </Badge>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <BusinessesCard
           businesses={businesses.data ?? []}
           isLoading={businesses.isLoading}
@@ -75,6 +78,7 @@ export default function SettingsPage() {
         />
 
         <PrivacyCard />
+        <AppearanceCard />
       </div>
 
       <Card>
@@ -346,6 +350,53 @@ function PrivacyCard() {
         </ul>
         <p className="mt-3 text-xs text-ink-subtle">
           The green/red status in the AI providers table is a live probe, not a stored value.
+        </p>
+      </CardBody>
+    </Card>
+  );
+}
+
+function AppearanceCard() {
+  // Mirror the ThemeToggle's mounted guard so the active choice is stable
+  // across SSR and the first client render.
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const choices: Array<{ value: "light" | "dark" | "system"; label: string; icon: React.ReactNode }> = [
+    { value: "light", label: "Light", icon: <Sun size={14} /> },
+    { value: "dark", label: "Dark", icon: <Moon size={14} /> },
+    { value: "system", label: "System", icon: <Monitor size={14} /> },
+  ];
+
+  return (
+    <Card>
+      <CardHeader
+        title="Appearance"
+        description="Choose how MoneyPlant looks. System follows your OS preference."
+      />
+      <CardBody>
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Theme">
+          {choices.map((c) => {
+            const active = mounted && theme === c.value;
+            return (
+              <Button
+                key={c.value}
+                size="sm"
+                variant={active ? "primary" : "secondary"}
+                iconLeft={c.icon}
+                onClick={() => setTheme(c.value)}
+                role="radio"
+                aria-checked={active}
+                disabled={!mounted}
+              >
+                {c.label}
+              </Button>
+            );
+          })}
+        </div>
+        <p className="mt-3 text-xs text-ink-subtle">
+          Your choice is stored locally. The top bar also has a quick toggle.
         </p>
       </CardBody>
     </Card>

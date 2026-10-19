@@ -26,7 +26,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light) {
     --color-surface: 16 17 21;
     --color-surface-sunken: 12 13 16;
     --color-surface-raised: 22 23 28;
@@ -43,6 +43,30 @@
     --color-bad: 232 110 110;
     --color-info: 138 165 220;
   }
+}
+
+/*
+ * Explicit user override. `next-themes` toggles this class on <html> when
+ * the user picks dark from the top-bar toggle or Settings → Appearance.
+ * Because every component resolves colors through `rgb(var(--color-*))`,
+ * a single class swap repaints the entire app — no `dark:` utilities.
+ */
+.dark {
+  --color-surface: 16 17 21;
+  --color-surface-sunken: 12 13 16;
+  --color-surface-raised: 22 23 28;
+  --color-ink: 232 234 237;
+  --color-ink-muted: 170 175 184;
+  --color-ink-subtle: 130 134 142;
+  --color-ink-inverse: 17 24 39;
+  --color-line: 38 40 47;
+  --color-accent: 138 165 220;
+  --color-accent-hover: 168 187 226;
+  --color-accent-soft: 31 44 67;
+  --color-ok: 110 200 130;
+  --color-warn: 220 175 80;
+  --color-bad: 232 110 110;
+  --color-info: 138 165 220;
 }
 
 html,

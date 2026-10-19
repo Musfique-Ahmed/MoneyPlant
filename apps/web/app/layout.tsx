@@ -17,7 +17,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
+    // `suppressHydrationWarning` is needed because next-themes sets a class
+    // on <html> before React hydrates; React would otherwise warn about
+    // the server/client mismatch.
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body className="min-h-screen bg-surface text-ink antialiased">
         <Providers>{children}</Providers>
       </body>

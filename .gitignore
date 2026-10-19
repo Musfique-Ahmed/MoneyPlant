@@ -44,6 +44,12 @@ playwright-report/
 test-results/
 .playwright/
 
+# Stray lockfile at the repo root (the project lives in apps/web/).
+# Generated accidentally by `npm install` from the wrong directory.
+package-lock.json
+!/apps/web/package-lock.json
+!/apps/web/**/package-lock.json
+
 # puku-cli / agent artifacts
 .puku-cli/
 !.puku-cli/settings.json.template
