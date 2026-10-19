@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Skeleton, EmptyState, ErrorState } from "@/components/ui/States";
 import { formatMoney, formatPercent } from "@/lib/format";
 import { useWorkspace } from "@/components/WorkspaceContext";
+import { AlertsPanel } from "@/components/AlertsPanel";
 import { ArrowRight, TrendingUp, Wallet, Banknote, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 
@@ -106,6 +107,9 @@ export default function DashboardPage() {
           />
         </div>
       )}
+      <div className="mt-4">
+        <AlertsPanel />
+      </div>
     </Page>
   );
 }
