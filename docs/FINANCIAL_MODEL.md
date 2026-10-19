@@ -183,3 +183,50 @@ Each rule evaluates a computed metric and returns a `RuleEvaluation` with severi
 - **Loan amortization schedules.** Only principal and interest as separate categories.
 
 These gaps are documented in the UI ("Data coverage: 6 of 9 categories present") and in every decision report.
+
+## 12. Financing-option matching (simple annuity + DSCR)
+
+MoneyPlant's financing matcher is a **synthetic, illustrative** engine. It is **not** a real lender offer, a credit score, a fee calculator, a tax engine, or a covenant tracker. It answers one question only:
+
+> Given a projected cash shortfall, which illustrative product in a SYNTHETIC catalog has a monthly payment the business can plausibly service from current operating profit?
+
+### 12.1 Inputs
+
+- `funding_need = max(0, −min(closing_cash_t) + min_buffer)` (the absolute value of the deepest projected cash dip, plus a buffer).
+- `monthly_operating_profit = (revenue − cogs − opex) / months_observed` (deterministic from the engine).
+- `avg_monthly_revenue = total_revenue / months_observed`.
+- `months_operating = months_observed` (a real production system would track the business's age separately; this proxy is documented).
+- Catalog product fields: `min_amount`, `max_amount`, `min_months_operating`, `min_avg_monthly_revenue`, `max_term_months`, `indicative_annual_rate` (Decimal as a string).
+
+### 12.2 Annuity formula
+
+For a principal `P`, annual rate `r`, term `n` months, monthly rate `m = r / 12`:
+
+```
+r_monthly = r / 12
+payment = P * r_monthly / (1 − (1 + r_monthly) ** −n)
+```
+
+When `r = 0` the formula degenerates to straight-line: `payment = P / n`. Computed in `decimal.Decimal` with `ROUND_HALF_UP` to 2 dp; never `float`.
+
+### 12.3 Affordability (DSCR)
+
+DSCR = `monthly_operating_profit / payment`. Floor = `1.2` (configurable). DSCR ≥ 1.5 × floor = `recommended`. Floor ≤ DSCR < 1.5 × floor = `possible`. DSCR < 1.0 = `not_recommended` (overrides any eligibility pass).
+
+### 12.4 Hard precedence
+
+1. If `funding_need ≤ 0` → return a `no_financing_needed` sentinel. No ranking, no recommendations.
+2. Any product failing a hard eligibility check (`funding_need_within_range`, `months_operating`, `avg_monthly_revenue`, `term_months`) is `not_recommended` regardless of any other signal.
+3. DSCR < 1.0 → `not_recommended`.
+4. Ranking within a tier: DSCR desc, then distance from the product range mid-point asc.
+
+### 12.5 Deliberately out of scope
+
+- No loan fees (origination, late, prepayment), no tax effect, no interest deductibility.
+- No credit scoring, no soft-pull, no underwriting, no personal-guarantee modelling.
+- No covenant tracking, no event-of-default logic, no refinancing optimisation.
+- No multi-currency. The catalog is a single currency; the business's currency must match (or the matcher returns 0 matches because the product fields are compared as `Decimal` strings).
+
+### 12.6 Synthetic catalog
+
+The catalog lives at `sample_data/financing_catalog.json` with `synthetic: true` at the top level. Every product carries its own `synthetic: true` flag. The API response repeats both flags; the UI must display the disclaimer `Illustrative products. Not a credit decision.` whenever the catalog is rendered.

@@ -1,3 +1,5 @@
+- **Cash-flow alerts** — deterministic monthly trajectory from imported transactions. Five alert codes (NEGATIVE_CASH, LOW_BUFFER, SHORT_RUNWAY, PROFITABLE_BUT_CASH_POOR, SHARP_DROP). Text-label severities (Critical / Warning / Info), no colour-only signalling.
+- **Financing-option matching** — a SYNTHETIC catalog of 5 illustrative products matched against the business's revenue, runway, and projected shortfall. Hard eligibility + DSCR floor override ranking. Not a credit decision.
 # MoneyPlant — SME Finance Copilot
 
 A privacy-aware financial decision copilot for small and medium-sized enterprises. Import records, simulate operating decisions, compare scenarios, and understand the risks and trade-offs of a proposed action.
@@ -135,6 +137,9 @@ The script runs: backend install → alembic upgrade → pytest → frontend ins
 
 | Layer | File | What it proves |
 |---|---|---|
+| Alerts | `backend/tests/test_alerts.py` | Each rule's trigger and non-trigger, boundary values, empty-input case. |
+| Financing | `backend/tests/test_financing.py` | No-shortfall sentinel, hand-calculated annuity, DSCR boundary, ineligible product, ranking order, Decimal precision. |
+| Frontend alerts Zod | `apps/web/lib/schemas.test.ts` | `Alert`, `AlertsResponse`, `FinancingMatch`, `FinancingOptionsResponse` parse correctly and reject unknowns. |
 | Money primitives | `backend/tests/test_money.py` | Decimal arithmetic, currency rounding, division-by-zero semantics. |
 | Periods | `backend/tests/test_periods.py` | Monthly half-open intervals, year rollovers, month arithmetic, leap-year clamping. |
 | Metrics | `backend/tests/test_metrics.py` | Revenue/cost/operating-profit categorization, cash vs. profit timing, runway. |
@@ -186,6 +191,8 @@ See [`docs/AI_AND_PRIVACY.md`](docs/AI_AND_PRIVACY.md). Highlights:
 
 ## Known limitations
 
+- **Synthetic financing catalog.** The 5 products are illustrative placeholders; eligibility thresholds and APRs are not real lender offers. UI is labelled `Illustrative products. Not a credit decision.`
+- **Financing affordability = simple annuity + DSCR.** No fees, no tax effect, no credit score, no covenant modelling. The matcher answers "could the monthly payment fit?" — nothing more.
 - No authentication in MVP — single-tenant. Do not expose on the public internet without adding auth.
 - No statistical forecasting. Sensitivity is deterministic one-at-a-time, clearly labelled.
 - No multi-currency conversion. Mixed-currency imports are quarantined.

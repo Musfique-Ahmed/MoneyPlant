@@ -26,6 +26,9 @@ These constraints mean **all** code and tests in this delivery are **🟡 Implem
 | Area | Status | Notes |
 |---|---|---|
 | Repo structure (apps/web, backend, docs, sample_data, scripts) | 🟡 | Files written; not executed. |
+| Cash-flow alerts (engine + endpoint + tests) | ✅ verified 2026-10-19 | `pytest tests/test_alerts.py` 23/23 pass. `pytest` (full) 156/156 pass. `/api/businesses/{id}/alerts` returns 200 with deterministic trajectory and `Note: ... LLM and Laya do not participate`. End-to-end smoke against seeded data confirmed alert codes + severity sort. |
+| Financing matching (catalog + matcher + endpoint + tests) | ✅ verified 2026-10-19 | `pytest tests/test_financing.py` 18/18 pass. `pytest` (full) 156/156 pass. `/api/businesses/{id}/financing-options` returns 200 with synthetic-flagged catalog, ranked matches, and `Note: ... SYNTHETIC catalog ... not a credit decision`. End-to-end smoke confirmed `no_financing_needed` sentinel on healthy data and ranked matches on stressed data. |
+| Frontend Zod mirrors (alerts + financing) + Alerts panel + Financing page | ✅ verified 2026-10-19 | `npm run typecheck` clean. `npm run lint` clean. `npm run test` 22/22 pass (8 new + 14 existing). |
 | Documentation (PRODUCT_SPEC, ARCHITECTURE, FINANCIAL_MODEL, AI_AND_PRIVACY, TEST_PLAN, IMPLEMENTATION_STATUS, DESIGN_DECISIONS) | 🟡 | Written; review by user pending. |
 | Backend financial engine (`backend/app/services/finance/`) | 🟡 | 6 modules: money, periods, metrics, profit_vs_cash, inventory, invariants. Tests assert exact numeric outputs. |
 | 5 industry adapters (manufacturing, retail, service, wholesale, food) | 🟡 | Each exposes `validate_inputs` + `extension_fields`. |
@@ -37,8 +40,10 @@ These constraints mean **all** code and tests in this delivery are **🟡 Implem
 | Component primitives (Button, Input, Select, Tabs, Dialog, Table, Card, Badge, Skeleton, EmptyState, ErrorState) | 🟡 | Built locally, not styled in production yet. |
 | Design system (Disciplined Ledger — Operate-mode floor) | 🟡 | Tokens defined; not validated against running browser. No formal `concept-seed.mjs` roll (bash unavailable). |
 | pytest suite | 🟡 | ~40 tests written with exact numeric assertions. Not run. |
+| pytest suite (post Phase 1+2) | ✅ verified 2026-10-19 | 156/156 pass. 23 new alerts tests + 18 new financing tests; 115 prior tests unchanged. |
 | Playwright journeys A–I | 🟡 | Specs written. Not run. `npx playwright install` required. |
 | Vitest unit tests (frontend format + Zod schemas) | 🟡 | Written. `npm install` required. |
+| Vitest unit tests (post Phase 3) | ✅ verified 2026-10-19 | 22/22 pass. 8 new Zod tests for Alert/Financing schemas; 14 prior tests unchanged. |
 | QA check script (`scripts/qa_check.ps1`) | 🟡 | Single command that runs everything below. |
 
 ## 3. Reproducible verification commands (user runs these)
