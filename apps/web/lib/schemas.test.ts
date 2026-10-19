@@ -3,6 +3,8 @@ import {
   Alert,
   AlertsResponse,
   Business,
+  DashboardInsights,
+  DashboardVisual,
   DecisionReport,
   FinancialSummary,
   FinancingMatch,
@@ -331,5 +333,38 @@ describe("FinancingOptionsResponse schema", () => {
     });
     expect(parsed.matches).toHaveLength(1);
     expect(parsed.matches[0]?.label).toBe("possible");
+  });
+});
+
+describe("DashboardInsights schema", () => {
+  const sampleVisual = {
+    visual_id: "kpi",
+    title: "Key metrics",
+    what_it_shows: "Top-line numbers.",
+    what_to_notice: ["Revenue grew 12%."],
+    why_it_matters: "It matters.",
+    evidence: {},
+  };
+
+  it("accepts a minimal insights payload", () => {
+    const parsed = DashboardInsights.parse({
+      business_id: "biz-1",
+      currency: "USD",
+      period_start: "2026-01-01",
+      period_end_exclusive: "2026-02-01",
+      calculation_timestamp: "2026-01-15T10:00:00Z",
+      note: "Deterministic.",
+      visuals: [sampleVisual],
+      alerts_count: 0,
+      financing_counts: { recommended: 0, possible: 0, not_recommended: 0 },
+      summary: { is_empty: false },
+    });
+    expect(parsed.visuals[0]?.visual_id).toBe("kpi");
+  });
+
+  it("rejects a visual with missing fields", () => {
+    expect(() =>
+      DashboardVisual.parse({ visual_id: "kpi", title: "x", what_it_shows: "x", why_it_matters: "x", what_to_notice: [] }),
+    ).toThrow();
   });
 });

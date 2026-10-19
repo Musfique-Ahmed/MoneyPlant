@@ -282,12 +282,58 @@ def get_dashboard_insights(
         for k, v in category_totals.items()
     ]
 
+    # --- Sensitivity on the observed period --------------------------------
+    # Deterministic, observed-period one-at-a-time sensitivity:
+    # scale monthly inflows (revenue proxy) and outflows (cost proxy) by ±25% / ±10%
+    # independently, recompute running closing cash, and report the cumulative delta.
+    sensitivity_slices: list[SensitivitySlice] = []
+    multipliers = [Decimal("-0.25"), Decimal("-0.10"), Decimal("0"), Decimal("0.10"), Decimal("0.25")]
+    multiplier_labels = ["-0.25", "-0.10", "0", "0.10", "0.25"]
+    sensitivity_axes = [
+        ("revenue", "inflows"),
+        ("costs", "outflows"),
+    ]
+    for axis_label, kind in sensitivity_axes:
+        points_by_mult: list[Decimal] = []
+        for mult in multipliers:
+            running = ZERO
+            for mm in monthly:
+                if kind == "inflows":
+                    net = quantize(
+                        mm.cash_inflows * (Decimal(1) + mult) + mm.cash_outflows,
+                        currency,
+                    )
+                else:
+                    net = quantize(
+                        mm.cash_inflows + mm.cash_outflows * (Decimal(1) + mult),
+                        currency,
+                    )
+                running = quantize(running + net, currency)
+            points_by_mult.append(running)
+        if any(p != ZERO for p in points_by_mult):
+            baseline = points_by_mult[2]  # multiplier 0
+            best = max(points_by_mult)
+            worst = min(points_by_mult)
+            best_idx = points_by_mult.index(best)
+            worst_idx = points_by_mult.index(worst)
+            sensitivity_slices.append(
+                SensitivitySlice(
+                    axis=axis_label,
+                    baseline=baseline,
+                    worst=worst,
+                    best=best,
+                    worst_multiplier=multiplier_labels[worst_idx],
+                    best_multiplier=multiplier_labels[best_idx],
+                )
+            )
+
     # --- Build inputs + visuals -------------------------------------------
     inputs = compute_aggregates(
         currency=currency,
         monthly=monthly,
         category_breakdown=category_breakdown,
         alerts=triggered,
+        sensitivity=sensitivity_slices,
         runway_months=runway_months,
     )
     visuals_raw = build_dashboard_insights(inputs)

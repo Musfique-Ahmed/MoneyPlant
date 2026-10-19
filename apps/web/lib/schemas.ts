@@ -344,3 +344,32 @@ export const FinancingOptionsResponse = z.object({
   no_financing_needed: NoFinancingNeeded.nullable(),
   note: z.string(),
 });
+
+
+// ---------------------------------------------------------------------------
+// Dashboard insights (mirror of backend/app/schemas/insights.py)
+// ---------------------------------------------------------------------------
+
+export const DashboardVisual = z.object({
+  visual_id: z.string(),
+  title: z.string(),
+  what_it_shows: z.string(),
+  what_to_notice: z.array(z.string()),
+  why_it_matters: z.string(),
+  evidence: z.record(z.unknown()),
+});
+export type DashboardVisualT = z.infer<typeof DashboardVisual>;
+
+export const DashboardInsights = z.object({
+  business_id: z.string(),
+  currency: z.string(),
+  period_start: z.string(),
+  period_end_exclusive: z.string(),
+  calculation_timestamp: z.string(),
+  note: z.string(),
+  visuals: z.array(DashboardVisual),
+  alerts_count: z.number().int().nonnegative(),
+  financing_counts: z.record(z.number().int().nonnegative()),
+  summary: z.record(z.unknown()),
+});
+export type DashboardInsightsT = z.infer<typeof DashboardInsights>;
