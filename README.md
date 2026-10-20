@@ -1,5 +1,7 @@
 # MoneyPlant — SME Finance Copilot
 
+GitHub Link: https://github.com/Musfique-Ahmed/MoneyPlant
+
 A privacy-aware financial decision copilot for small and medium-sized enterprises. Import records, simulate operating decisions, compare scenarios, and understand the risks and trade-offs of a proposed action.
 
 The repository runs end-to-end: a FastAPI backend that owns all financial math (`Decimal` everywhere, never `float`), a Next.js 14 frontend that renders the engine's output, an idempotent sync layer for CSV/XLSX files and read-only SQL sources, a deterministic 8-rule decision engine with HARD-first precedence, a Laya soft-assessment adapter, and an LLM layer that **only explains** verdicts (never computes them).
