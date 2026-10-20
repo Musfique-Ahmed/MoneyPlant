@@ -72,6 +72,7 @@ def create_app() -> FastAPI:
     from app.api.ai import router as ai_router
     from app.api.alerts import router as alerts_router
     from app.api.businesses import router as businesses_router
+    from app.api.data_sources import router as data_sources_router
     from app.api.decisions import router as decisions_router
     from app.api.financing import router as financing_router
     from app.api.imports import router as imports_router
@@ -88,6 +89,7 @@ def create_app() -> FastAPI:
     app.include_router(alerts_router, prefix="/api")
     app.include_router(financing_router, prefix="/api")
     app.include_router(insights_router, prefix="/api")
+    app.include_router(data_sources_router, prefix="/api")
 
     @app.exception_handler(Exception)
     async def unhandled(_request, exc: Exception) -> JSONResponse:

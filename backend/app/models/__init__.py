@@ -6,6 +6,7 @@ to ``docs/ARCHITECTURE.md`` §5.
 """
 
 from app.models.business import Business
+from app.models.data_source import DataSource, SyncRun
 from app.models.decision import DecisionReport, LlmExplanation
 from app.models.import_job import ImportJob
 from app.models.scenario import Scenario, ScenarioVersion
@@ -19,4 +20,6 @@ __all__ = [
     "ScenarioVersion",
     "DecisionReport",
     "LlmExplanation",
+    "DataSource",
+    "SyncRun",
 ]
