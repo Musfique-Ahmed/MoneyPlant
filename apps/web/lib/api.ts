@@ -101,3 +101,22 @@ async function safeText(r: Response): Promise<string> {
     return "<no body>";
   }
 }
+
+/**
+ * DELETE that tolerates an empty (204 No Content) body.
+ *
+ * `apiSend` always calls `res.json()`, which throws on an empty body, so
+ * deletions get their own path that never tries to parse a body it does
+ * not expect.
+ */
+export async function apiDelete(path: string, init?: RequestInit): Promise<void> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "DELETE",
+    headers: { Accept: "application/json" },
+    ...init,
+  });
+  if (!res.ok) {
+    const text = await safeText(res);
+    throw new ApiError(res.status, text);
+  }
+}

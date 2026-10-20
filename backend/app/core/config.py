@@ -60,6 +60,25 @@ class Settings(BaseSettings):
     upload_max_bytes: int = 10 * 1024 * 1024  # 10 MB
     upload_allowed_extensions: tuple[str, ...] = (".csv", ".xlsx", ".xls")
 
+# --- Data sources (incremental sync) ---------------------------------
+    # Allowed root directory for ``file`` data sources. Any file-source path
+    # that resolves outside this directory is rejected (path traversal and
+    # symlink escapes). Defaults to ``sample_data/``.
+    file_source_root: str = "./sample_data"
+
+    # Sync row limit ceiling for SQL sources. Per-source config may lower it.
+    sync_sql_row_limit: int = 50_000
+
+    # Statement timeout (seconds) applied to SQL-source connections.
+    sync_sql_statement_timeout_seconds: int = 30
+
+    # Background scheduler. When true the FastAPI lifespan starts a daemon
+    # thread that syncs due sources. Set false to rely purely on the CLI
+    # (``scripts/sync_sources.py``) or Windows Task Scheduler.
+    sync_scheduler_enabled: bool = True
+
+    # How often the background scheduler wakes up, in seconds. Minimum 30.
+    sync_scheduler_interval_seconds: int = 300
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

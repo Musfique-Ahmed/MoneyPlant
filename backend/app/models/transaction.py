@@ -30,6 +30,13 @@ class Transaction(UUIDPrimaryKeyMixin, Base):
     source_sheet: Mapped[str | None] = mapped_column(String(200), nullable=True)
     source_row: Mapped[int | None] = mapped_column(Integer, nullable=True)
     import_job_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+# Sync-dedup: SHA-256 over the canonical row tuple. Enforced unique per
+    # business by ``uq_transactions_business_source_row_hash``. Allows
+    # idempotent re-syncs.
+    source_row_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Provenance: the DataSource that brought this row in. NULL for manual
+    # CSV imports (which have an import_job_id instead).
+    data_source_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

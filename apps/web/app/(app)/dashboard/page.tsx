@@ -64,6 +64,7 @@ import { ScenarioCompareChart } from "@/components/dashboard/ScenarioCompareChar
 import { MonthlyTable } from "@/components/dashboard/MonthlyTable";
 import { MonthSidePanel } from "@/components/dashboard/MonthSidePanel";
 import { useTogglableSeries } from "@/components/dashboard/useTogglableSeries";
+import { FreshnessStrip } from "@/components/dashboard/FreshnessStrip";
 
 /* -------------------------------------------------------------------------- */
 /*  Constants                                                                 */
@@ -374,6 +375,9 @@ export default function DashboardPage() {
           imported transactions; nothing here is invented by the UI.
         </p>
       </div>
+
+      {/* Data freshness -------------------------------------------------------- */}
+      {effectiveId ? <FreshnessStrip businessId={effectiveId} /> : null}
 
       {/* Calculation timestamp + LLM explain ---------------------------------- */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-subtle">

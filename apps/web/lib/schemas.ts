@@ -373,3 +373,114 @@ export const DashboardInsights = z.object({
   summary: z.record(z.unknown()),
 });
 export type DashboardInsightsT = z.infer<typeof DashboardInsights>;
+
+// ---------------------------------------------------------------------------
+// Data sources + sync runs (mirrors backend/app/schemas/data_source.py)
+// ---------------------------------------------------------------------------
+
+/** Mirrors the backend's ``SOURCE_TYPES`` tuple. */
+export const DataSourceType = z.enum(["file", "sql"]);
+export type DataSourceTypeT = z.infer<typeof DataSourceType>;
+
+/** Mirrors the backend's ``SCHEDULES`` tuple. */
+export const SyncSchedule = z.enum(["manual", "hourly", "daily"]);
+export type SyncScheduleT = z.infer<typeof SyncSchedule>;
+
+/**
+ * The read shape returned by the API.
+ *
+ * NOTE: there is deliberately no ``secret_ref`` here. The backend never
+ * returns the credential env-var name, so a schema that expects one would
+ * fail loudly if that guarantee is ever broken.
+ */
+export const DataSource = z.object({
+  id: z.string(),
+  business_id: z.string(),
+  type: DataSourceType,
+  name: z.string(),
+  config: z.record(z.unknown()),
+  column_mapping: z.record(z.string()),
+  incremental_key: z.string().nullable(),
+  incremental_value: z.string().nullable(),
+  file_content_sha256: z.string().nullable(),
+  schedule: SyncSchedule,
+  enabled: z.boolean(),
+  last_sync_at: z.string().nullable(),
+  last_status: z.enum(["never_run", "ok", "partial", "failed"]),
+  last_error_summary: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type DataSourceT = z.infer<typeof DataSource>;
+
+/** Mirrors ``DataSourceTestResult``. Never carries a credential. */
+export const DataSourceTestResult = z.object({
+  status: z.enum(["ok", "failed"]),
+  last_message: z.string().nullable(),
+  sample_rows: z.array(z.string()),
+  headers: z.array(z.string()),
+  row_count_preview: z.number().int().nonnegative(),
+});
+export type DataSourceTestResultT = z.infer<typeof DataSourceTestResult>;
+
+/** One validation issue attached to a rejected row. */
+export const SyncValidationIssue = z.object({
+  row: z.number().int(),
+  field: z.string(),
+  severity: z.enum(["error", "warning"]),
+  message: z.string(),
+});
+export type SyncValidationIssueT = z.infer<typeof SyncValidationIssue>;
+
+/** Mirrors ``SyncRunRead``. */
+export const SyncRun = z.object({
+  id: z.string(),
+  source_id: z.string(),
+  started_at: z.string(),
+  finished_at: z.string().nullable(),
+  status: z.enum(["running", "never_run", "ok", "partial", "failed"]),
+  rows_read: z.number().int().nonnegative(),
+  rows_added: z.number().int().nonnegative(),
+  rows_skipped_duplicate: z.number().int().nonnegative(),
+  rows_rejected: z.number().int().nonnegative(),
+  validation_issues: z.array(z.record(z.unknown())).default([]),
+  error_summary: z.string().nullable(),
+  trigger: z.enum(["manual", "schedule", "cli"]),
+});
+export type SyncRunT = z.infer<typeof SyncRun>;
+
+/** Mirrors ``SyncRunList``. */
+export const SyncRunList = z.object({ items: z.array(SyncRun) });
+
+/** One source's row in the dashboard freshness strip. */
+export const FreshnessSource = z.object({
+  id: z.string(),
+  name: z.string(),
+  type: DataSourceType,
+  schedule: SyncSchedule,
+  enabled: z.boolean(),
+  last_sync_at: z.string().nullable(),
+  last_status: z.enum(["never_run", "ok", "partial", "failed"]),
+  last_error_summary: z.string().nullable(),
+  is_stale: z.boolean(),
+  last_sync_text: z.string(),
+});
+export type FreshnessSourceT = z.infer<typeof FreshnessSource>;
+
+/**
+ * Mirrors ``GET /api/businesses/{id}/freshness``.
+ *
+ * ``headline`` is a pre-written sentence from the backend so the UI never
+ * has to invent staleness wording.
+ */
+export const Freshness = z.object({
+  business_id: z.string(),
+  source_count: z.number().int().nonnegative(),
+  last_sync_at: z.string().nullable(),
+  last_status: z.enum(["never_run", "ok", "partial", "failed"]),
+  any_stale: z.boolean(),
+  headline: z.string(),
+  last_sync_text: z.string(),
+  sources: z.array(FreshnessSource),
+});
+export type FreshnessT = z.infer<typeof Freshness>;

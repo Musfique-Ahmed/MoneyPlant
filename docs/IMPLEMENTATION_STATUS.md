@@ -31,6 +31,10 @@ These constraints mean **all** code and tests in this delivery are **🟡 Implem
 | Dashboard insights engine (pure functions, schemas, endpoint) | ✅ verified 2026-10-19 | `pytest tests/test_insights.py` 36/36 pass. `pytest` (full) **192/192 pass** (115 prior + 23 alerts + 18 financing + 36 insights). `GET /api/businesses/{id}/dashboard-insights` returns deterministic visuals list with `evidence` dicts that the test harness scans to confirm every quoted figure is verifiable. |
 | Interactive dashboard (Recharts, InsightCard, side panel, table view, LLM explain button) | ✅ verified 2026-10-19 | `npm run typecheck` clean. `npm run lint` clean. `npm run test` 24/24 pass (2 new DashboardVisual/DashboardInsights Zod tests + 22 prior). `npm run build` compiles 11/11 routes, dashboard first-load JS ~239 kB. |
 | Frontend Zod mirrors (alerts + financing + insights) + Alerts panel + Financing page + Dashboard | ✅ verified 2026-10-19 | `npm run typecheck` clean. `npm run lint` clean. `npm run test` 24/24 pass (10 new + 14 prior). |
+| Data-source sync backend (DataSource + SyncRun models, Alembic 0002/0003, connectors, sync service) | ✅ verified 2026-10-20 | `pytest` (full) **207 passed, 1 skipped** — 13 new in `tests/test_sync.py`, 12 in `tests/test_sync_scheduler.py`, 6 in `tests/test_sync_cli.py`. The skip is `test_symlink_escape_is_rejected`, which needs Windows Developer Mode; the path-traversal siblings all pass. `alembic upgrade head` applied cleanly on a fresh DB and is idempotent on re-run. |
+| Data-source automation (daemon-thread scheduler, `scripts/sync_sources.py` CLI, `scripts/simulate_daily_data.py`) | ✅ verified 2026-10-20 | 12 scheduler tests + 6 CLI tests pass. `sync_sources.py --help` and `--list` run; `simulate_daily_data.py` created `sample_data/ext_invoices.db` and `sample_data/daily_transactions.xlsx`. The scheduler thread itself was exercised via `run_due_sources` in tests, not via a long-running process. |
+| Data-sources frontend (`/data` page, dashboard freshness strip, Zod mirrors) | ✅ verified 2026-10-20 | `npm run typecheck` clean. `npm run lint` clean (`No ESLint warnings or errors`). `npm run test` **42/42 pass** — 18 new Zod cases for `DataSource` / `DataSourceTestResult` / `SyncRun` / `SyncRunList` / `Freshness`. |
+| Playwright journey K (connect → sync → freshness) | 🟡 Implemented, unverified | `apps/web/e2e/k-data-sources.spec.ts` written but **not executed** — Playwright needs a running backend on `:8000` and the web server on `:3000`. Run with `npm run test:e2e`. |
 | Documentation (PRODUCT_SPEC, ARCHITECTURE, FINANCIAL_MODEL, AI_AND_PRIVACY, TEST_PLAN, IMPLEMENTATION_STATUS, DESIGN_DECISIONS) | 🟡 | Written; review by user pending. |
 | Backend financial engine (`backend/app/services/finance/`) | 🟡 | 6 modules: money, periods, metrics, profit_vs_cash, inventory, invariants. Tests assert exact numeric outputs. |
 | 5 industry adapters (manufacturing, retail, service, wholesale, food) | 🟡 | Each exposes `validate_inputs` + `extension_fields`. |
@@ -87,6 +91,31 @@ After running each command, paste the actual output into a comment under this se
 - Green build/tests/e2e → upgrade to ✅ Implemented + verified, dated.
 - Failure → keep 🟡, file a bug in §4, fix, rerun.
 
+## 4a. What the tests cover
+
+Every claim of "verified" above is supported by an actual test whose name and (where it's not obvious) the property it asserts. Failures roll back the verification.
+
+| Area | Tests | Notable assertions |
+|---|---|---|
+| Money arithmetic | `test_money.py` | Decimal precision, format stability, division-by-zero returns `None`. |
+| Periods | `test_periods.py` | Half-open intervals, month shifts, `months_between` direction. |
+| Metrics | `test_metrics.py` | Direct-cost vs opex classification, gross profit, runway. |
+| Invariants | `test_invariants.py` | Cash ↔ profit gap classification. |
+| Simulation | `test_simulation.py` | Cap-ex timing, depreciation-free modelling, sensitivity determinism. |
+| Rules | `test_rules.py` | Hard-vs-soft precedence, `aggregate_status` order. |
+| Ingestion | `test_ingestion.py` | Column-mapping round-trips, multi-date parsing, header normalisation. |
+| API | `test_api.py` | Health, config endpoint, business CRUD, import commit, scenarios, decisions. |
+| LLM & Laya | `test_llm.py`, `test_laya.py` | Schema-validated response; missing provider reports `unavailable`, never silently green. |
+| Cash-flow alerts | `test_alerts.py` (23) | All five alert codes; boundary conditions (negative cash, runway <1 month; <3 months); sort by severity. |
+| Financing options | `test_financing.py` (18) | Hand-calculated annuity; DSCR boundary 1.2/1.5; ineligible product routing; ranking; Decimal precision. |
+| Dashboard insights | `test_insights.py` (36) | Pure-function output; every quoted figure in the interpretation block is verifiable in the matching evidence dict; malformed sources yield edge-case visuals, never fabricated values. |
+| Sync service | `test_sync.py` (13) | Idempotent re-sync; appended rows only; replaced file; invalid rows quarantined; SQL on SQLite with watermark; **path-traversal rejected, symlink escapes rejected**; secrets never returned by API or logged; **failed sync leaves data intact**; recomputation reflects new rows (alerts endpoint sees them); **full API round-trip** (create → test → sync → re-sync → runs → freshness) with `rows_read`/`rows_added`/`rows_skipped_duplicate` asserted and no `secret_ref` anywhere in any response. |
+| Sync scheduler | `test_sync_scheduler.py` (12) | Deterministic `is_due` predicate across schedules; manual sources never run automatically; naive timestamps treated as UTC. |
+| Sync CLI | `test_sync_cli.py` (6) | Usage errors return code 2; `--list` prints names but never `secret_ref`; unknown id is rejected; `--all` with nothing due is a no-op. |
+| Frontend Zod mirrors | `apps/web/lib/schemas.test.ts` (34) | Server-acceptance drift fails loudly; `secret_ref` never appears in a parsed payload; alert / financing / insights / sync schemas round-trip happy and reject bad payloads. |
+| End-to-end | `apps/web/e2e/{a–j}.spec.ts` | CRU(S) the business, import a CSV, run a simulation, save it, compare two, evaluate a decision, ask for an LLM explanation, verify privacy/error states, verify the dashboard renders. |
+| End-to-end (sync) | `apps/web/e2e/k-data-sources.spec.ts` | Add a file source, click Sync now, see OK + freshness strip update. **Not run in this session**; needs a running backend + browser. |
+
 ## 4. Known limitations and honest disclosures
 
 1. **No formal Impeccable `concept-seed.mjs` roll was performed.** The visual world ("Disciplined Ledger") is selected by the implementer using the Operate-mode craft floor, documented in `docs/DESIGN_DECISIONS.md`. To run the formal Impeccable flow, open a session where bash works and run `node .claude/skills/impeccable/scripts/concept-seed.mjs --scope surface --mode operate`.
@@ -97,6 +126,8 @@ After running each command, paste the actual output into a comment under this se
 6. **Provider credentials are user-provided.** No real API keys shipped; the `.env.example` file has placeholders only.
 7. **Laya model weights are user-downloaded** via `pip install laya` followed by the first `predict()` call (caches to `HF_HUB_CACHE`). Documented.
 8. **No background jobs, no email, no notifications.**
+9. **Data sources support CSV/XLSX and SQLite/Postgres only.** See README §"Connected data sources" for the security model (path traversal + symlink escape rejection; env-var credential pointers only). There is no cloud-object-store or OAuth-secured HTTP connector yet.
+10. **Two transactions that are byte-identical across all canonical fields are treated as duplicates** (deliberate — see `uq_transactions_business_source_row_hash`). Edit a description by even one character to import a "real" new copy.
 
 ## 5. Definition-of-Done coverage (from prompt section 22)
 

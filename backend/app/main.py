@@ -20,7 +20,26 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
     settings = get_settings()
     configure_logging(level=settings.log_level, redact=settings.log_redact_financial)
     logger.info("moneyplant.startup", extra={"event": "startup"})
+
+    # Background data-source scheduler. A daemon thread, started only when
+    # ``SYNC_SCHEDULER_ENABLED`` is true. Disabled in tests and whenever the
+    # operator prefers the CLI / Windows Task Scheduler.
+    scheduler = None
+    if settings.sync_scheduler_enabled:
+        from app.db.session import SessionLocal
+        from app.services.sync.scheduler import SyncScheduler
+
+        scheduler = SyncScheduler(
+            SessionLocal,
+            interval_seconds=settings.sync_scheduler_interval_seconds,
+        )
+        scheduler.start()
+    app.state.sync_scheduler = scheduler
+
     yield
+
+    if scheduler is not None:
+        scheduler.stop()
     logger.info("moneyplant.shutdown", extra={"event": "shutdown"})
 
 
@@ -72,6 +91,8 @@ def create_app() -> FastAPI:
     from app.api.ai import router as ai_router
     from app.api.alerts import router as alerts_router
     from app.api.businesses import router as businesses_router
+    from app.api.data_sources import router as data_sources_router
+    from app.api.data_sources import business_router as data_sources_business_router
     from app.api.decisions import router as decisions_router
     from app.api.financing import router as financing_router
     from app.api.imports import router as imports_router
@@ -88,6 +109,8 @@ def create_app() -> FastAPI:
     app.include_router(alerts_router, prefix="/api")
     app.include_router(financing_router, prefix="/api")
     app.include_router(insights_router, prefix="/api")
+    app.include_router(data_sources_router, prefix="/api")
+    app.include_router(data_sources_business_router, prefix="/api")
 
     @app.exception_handler(Exception)
     async def unhandled(_request, exc: Exception) -> JSONResponse:

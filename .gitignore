@@ -39,6 +39,11 @@ data/
 *.log
 logs/
 
+# Generated demo artifacts created on demand by scripts/simulate_daily_data.py.
+# *.db is already covered above; the .xlsx would also be a mutating per-run
+# file that should not be committed.
+sample_data/*.xlsx
+
 # Playwright
 playwright-report/
 test-results/
