@@ -63,3 +63,8 @@ package-lock.json
 
 # Impeccable sketches
 .impeccable/sketches/*.tmp
+
+# Knowledge-graph / repo-exploration artifacts (graphify et al.) — regenerated
+# on demand by the `/graphify` skill. Carrying 5+ MB of build output into
+# git history serves no reviewer.
+graphify-out/
