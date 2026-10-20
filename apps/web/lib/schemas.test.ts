@@ -5,12 +5,17 @@ import {
   Business,
   DashboardInsights,
   DashboardVisual,
+  DataSource,
+  DataSourceTestResult,
   DecisionReport,
   FinancialSummary,
   FinancingMatch,
   FinancingOptionsResponse,
+  Freshness,
   ImportPreview,
   Scenario,
+  SyncRun,
+  SyncRunList,
 } from "./schemas";
 
 describe("Business schema", () => {
@@ -366,5 +371,229 @@ describe("DashboardInsights schema", () => {
     expect(() =>
       DashboardVisual.parse({ visual_id: "kpi", title: "x", what_it_shows: "x", why_it_matters: "x", what_to_notice: [] }),
     ).toThrow();
+  });
+});
+
+/* ------------------------------------------------------------------------- */
+/* Data sources + sync runs                                                   */
+/* ------------------------------------------------------------------------- */
+
+describe("DataSource schema", () => {
+  const baseSource = {
+    id: "src-1",
+    business_id: "biz-1",
+    type: "file",
+    name: "Daily POS exports",
+    config: { path: "daily_transactions.xlsx" },
+    column_mapping: { tx_date: "tx_date", amount: "amount" },
+    incremental_key: null,
+    incremental_value: null,
+    file_content_sha256: "abc123",
+    schedule: "daily",
+    enabled: true,
+    last_sync_at: new Date().toISOString(),
+    last_status: "ok",
+    last_error_summary: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  it("accepts a valid file source", () => {
+    const parsed = DataSource.parse(baseSource);
+    expect(parsed.type).toBe("file");
+    expect(parsed.schedule).toBe("daily");
+    expect(parsed.last_status).toBe("ok");
+  });
+
+  it("accepts a sql source with an incremental key", () => {
+    const parsed = DataSource.parse({
+      ...baseSource,
+      type: "sql",
+      incremental_key: "updated_at",
+      incremental_value: "2026-03-01T00:00:00",
+    });
+    expect(parsed.type).toBe("sql");
+    expect(parsed.incremental_key).toBe("updated_at");
+  });
+
+  it("rejects an unknown source type", () => {
+    expect(() => DataSource.parse({ ...baseSource, type: "sftp" })).toThrow();
+  });
+
+  it("rejects an unknown schedule", () => {
+    expect(() => DataSource.parse({ ...baseSource, schedule: "weekly" })).toThrow();
+  });
+
+  it("rejects an unknown last_status", () => {
+    expect(() => DataSource.parse({ ...baseSource, last_status: "maybe" })).toThrow();
+  });
+
+  /**
+   * The security guarantee: the backend must never return the credential
+   * env-var name. Even if a payload somehow carried one, the parsed result
+   * must not surface it, so nothing downstream can read or display it.
+   */
+  it("never surfaces secret_ref from a payload that contains one", () => {
+    const parsed = DataSource.parse({ ...baseSource, secret_ref: "MY_DB_URL" });
+    expect(parsed).not.toHaveProperty("secret_ref");
+    expect(JSON.stringify(parsed)).not.toContain("MY_DB_URL");
+  });
+
+  it("tolerates a never-synced source", () => {
+    const parsed = DataSource.parse({
+      ...baseSource,
+      last_sync_at: null,
+      last_status: "never_run",
+      incremental_value: null,
+      file_content_sha256: null,
+    });
+    expect(parsed.last_sync_at).toBeNull();
+    expect(parsed.last_status).toBe("never_run");
+  });
+});
+
+describe("DataSourceTestResult schema", () => {
+  it("accepts a successful probe", () => {
+    const parsed = DataSourceTestResult.parse({
+      status: "ok",
+      last_message: null,
+      sample_rows: ["{'tx_date': '2026-01-05'}"],
+      headers: ["tx_date", "amount"],
+      row_count_preview: 5,
+    });
+    expect(parsed.status).toBe("ok");
+    expect(parsed.headers).toEqual(["tx_date", "amount"]);
+  });
+
+  it("accepts a failed probe with a safe message", () => {
+    const parsed = DataSourceTestResult.parse({
+      status: "failed",
+      last_message: "path_outside_allowed_root",
+      sample_rows: [],
+      headers: [],
+      row_count_preview: 0,
+    });
+    expect(parsed.status).toBe("failed");
+    expect(parsed.last_message).toBe("path_outside_allowed_root");
+  });
+});
+
+describe("SyncRun schema", () => {
+  const baseRun = {
+    id: "run-1",
+    source_id: "src-1",
+    started_at: new Date().toISOString(),
+    finished_at: new Date().toISOString(),
+    status: "ok",
+    rows_read: 12,
+    rows_added: 8,
+    rows_skipped_duplicate: 4,
+    rows_rejected: 0,
+    error_summary: null,
+    trigger: "manual",
+  };
+
+  it("accepts a successful run and defaults validation_issues to []", () => {
+    const parsed = SyncRun.parse(baseRun);
+    expect(parsed.rows_added).toBe(8);
+    expect(parsed.rows_skipped_duplicate).toBe(4);
+    expect(parsed.validation_issues).toEqual([]);
+  });
+
+  it("accepts a partial run with rejected rows", () => {
+    const parsed = SyncRun.parse({
+      ...baseRun,
+      status: "partial",
+      rows_rejected: 2,
+      validation_issues: [
+        { row: 4, field: "amount", severity: "error", message: "Invalid amount" },
+      ],
+    });
+    expect(parsed.status).toBe("partial");
+    expect(parsed.rows_rejected).toBe(2);
+    expect(parsed.validation_issues).toHaveLength(1);
+  });
+
+  it("accepts a failed run with an error summary", () => {
+    const parsed = SyncRun.parse({
+      ...baseRun,
+      status: "failed",
+      rows_added: 0,
+      error_summary: "read_failed:file_not_found",
+    });
+    expect(parsed.status).toBe("failed");
+    expect(parsed.error_summary).toBe("read_failed:file_not_found");
+  });
+
+  it("rejects a negative counter", () => {
+    expect(() => SyncRun.parse({ ...baseRun, rows_added: -1 })).toThrow();
+  });
+
+  it("rejects an unknown trigger", () => {
+    expect(() => SyncRun.parse({ ...baseRun, trigger: "webhook" })).toThrow();
+  });
+
+  it("wraps runs in the list envelope", () => {
+    const parsed = SyncRunList.parse({ items: [baseRun] });
+    expect(parsed.items).toHaveLength(1);
+    expect(parsed.items[0]?.rows_read).toBe(12);
+  });
+});
+
+describe("Freshness schema", () => {
+  const baseFresh = {
+    business_id: "biz-1",
+    source_count: 1,
+    last_sync_at: new Date().toISOString(),
+    last_status: "ok",
+    any_stale: false,
+    headline: "Up to date.",
+    last_sync_text: "2 h ago",
+    sources: [
+      {
+        id: "src-1",
+        name: "Daily POS exports",
+        type: "file",
+        schedule: "daily",
+        enabled: true,
+        last_sync_at: new Date().toISOString(),
+        last_status: "ok",
+        last_error_summary: null,
+        is_stale: false,
+        last_sync_text: "2 h ago",
+      },
+    ],
+  };
+
+  it("accepts an up-to-date strip", () => {
+    const parsed = Freshness.parse(baseFresh);
+    expect(parsed.source_count).toBe(1);
+    expect(parsed.any_stale).toBe(false);
+    expect(parsed.sources[0]?.is_stale).toBe(false);
+  });
+
+  it("accepts a stale source flagged in the headline", () => {
+    const parsed = Freshness.parse({
+      ...baseFresh,
+      any_stale: true,
+      last_status: "never_run",
+      last_sync_at: null,
+      last_sync_text: "Never",
+      headline: "No sync yet — connect a source to start pulling data.",
+      sources: [{ ...baseFresh.sources[0], is_stale: true, last_sync_at: null, last_status: "never_run" }],
+    });
+    expect(parsed.any_stale).toBe(true);
+    expect(parsed.headline).toContain("No sync yet");
+    expect(parsed.sources[0]?.is_stale).toBe(true);
+  });
+
+  it("accepts a strip with zero sources", () => {
+    const parsed = Freshness.parse({
+      ...baseFresh,
+      source_count: 0,
+      sources: [],
+    });
+    expect(parsed.source_count).toBe(0);
+    expect(parsed.sources).toEqual([]);
   });
 });
