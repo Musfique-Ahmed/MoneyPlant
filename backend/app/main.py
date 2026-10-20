@@ -20,7 +20,26 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
     settings = get_settings()
     configure_logging(level=settings.log_level, redact=settings.log_redact_financial)
     logger.info("moneyplant.startup", extra={"event": "startup"})
+
+    # Background data-source scheduler. A daemon thread, started only when
+    # ``SYNC_SCHEDULER_ENABLED`` is true. Disabled in tests and whenever the
+    # operator prefers the CLI / Windows Task Scheduler.
+    scheduler = None
+    if settings.sync_scheduler_enabled:
+        from app.db.session import SessionLocal
+        from app.services.sync.scheduler import SyncScheduler
+
+        scheduler = SyncScheduler(
+            SessionLocal,
+            interval_seconds=settings.sync_scheduler_interval_seconds,
+        )
+        scheduler.start()
+    app.state.sync_scheduler = scheduler
+
     yield
+
+    if scheduler is not None:
+        scheduler.stop()
     logger.info("moneyplant.shutdown", extra={"event": "shutdown"})
 
 
