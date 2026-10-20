@@ -70,9 +70,11 @@ from app.services.sync.sql_connector import SqlConnector, SqlSourceError
 logger = logging.getLogger(__name__)
 
 
-#: Default filesystem root used for file sources. Configurable via env.
+#: Default filesystem root used for file sources. Configurable via the
+#: ``FILE_SOURCE_ROOT`` env var (or ``Settings.file_source_root``). Kept as a
+#: module constant for callers that need the default without a Settings read.
 DEFAULT_FILE_SOURCE_ROOT = Path(
-    os.environ.get("MONEYPLANT_FILE_SOURCE_ROOT")
+    os.environ.get("FILE_SOURCE_ROOT")
     or (Path(__file__).resolve().parents[3] / "sample_data")
 ).resolve()
 
@@ -220,15 +222,22 @@ def _run_sync(
     validation_issues: list[dict[str, Any]] = []
     affected_business_id = business.id
 
-    # Bucket rows by ``column_mapping`` so parse_rows works on them.
-    raw_by_source_col = [r.data for r in rows]
-    # Build a synthetic CSV-style header map for parse_rows.
-    inverted_mapping = dict(column_mapping)
+    # Each RawRow carries the source-side columns keyed by their ORIGINAL
+    # names (e.g. "date", "amount", "type"). ``parse_rows`` resolves them
+    # through ``column_mapping`` (canonical -> source), so we must hand it
+    # the untouched source-side dict, not a canonicalised one.
+    raw_by_source_col = [
+        {k: v for k, v in r.data.items() if not k.startswith("_")}
+        for r in rows
+    ]
 
-    # ``parse_rows`` wants a dict keyed by source columns, but reads from
-    # ``row.get(mapping[tx_date], …)``. We therefore invert: pass a raw
-    # dict-of-list keyed by source col (matching csv's behaviour).
-    rows_iter = _rows_for_parser(raw_by_source_col, list(inverted_mapping.keys()))
+    # The parser reads ``row.get(mapping[canonical])``. The set of source
+    # columns is whatever the first row actually carries; fall back to the
+    # mapping's values when the batch is empty.
+    source_columns = sorted(raw_by_source_col[0].keys()) if raw_by_source_col else sorted(
+        set(column_mapping.values())
+    )
+    rows_iter = _rows_for_parser(raw_by_source_col, source_columns)
 
     # De-dup by source_row_hash. We check existing hashes by querying
     # before insert, and also catch unique-constraint conflicts.
@@ -328,9 +337,19 @@ def _build_connector(
 
     if source.type == SOURCE_TYPE_FILE:
         try:
+            # Read the allowed root directly from the environment so tests
+            # that ``monkeypatch.setenv`` get the test value. In production
+            # ``Settings.file_source_root`` is initialised from the same
+            # variable, so the two paths agree.
+            from app.core.config import get_settings
+
+            try:
+                settings = get_settings()
+                configured = settings.file_source_root
+            except Exception:  # noqa: BLE001
+                configured = "./sample_data"
             root = Path(
-                os.environ.get("MONEYPLANT_FILE_SOURCE_ROOT")
-                or str(DEFAULT_FILE_SOURCE_ROOT)
+                os.environ.get("FILE_SOURCE_ROOT", configured)
             ).resolve()
             return FileConnector(
                 path=config.get("path", ""),

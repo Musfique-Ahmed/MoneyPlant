@@ -11,6 +11,7 @@ A privacy-aware financial decision copilot for small and medium-sized enterprise
 - **Dashboard interpretations** — every visual (KPI strip, revenue/costs/profit, cash balance, profit–cash gap, cost breakdown, sensitivity, scenario compare, alerts, financing) has a deterministic, pure-function text interpretation next to it. No LLM by default. The interpretation is testable: every quoted figure is verifiable in the matching evidence dict.
 - **Cash-flow alerts** — deterministic monthly trajectory from imported transactions. Five alert codes (NEGATIVE_CASH, LOW_BUFFER, SHORT_RUNWAY, PROFITABLE_BUT_CASH_POOR, SHARP_DROP). Text-label severities (Critical / Warning / Info), no colour-only signalling.
 - **Financing-option matching** — a SYNTHETIC catalog of 5 illustrative products matched against the business's revenue, runway, and projected shortfall. Hard eligibility + DSCR floor override ranking. Not a credit decision.
+- **Connected data sources** — connect a CSV/XLSX file from the configured allowed directory, or a SQL table described by an env-var name, and have MoneyPlant pull new rows automatically. Idempotent re-sync (SHA-256 dedup), per-source run history with rows-added / skipped-as-duplicate / rejected counters, a background scheduler, a CLI (`scripts/sync_sources.py`) for Windows Task Scheduler / cron, and a demo helper (`scripts/simulate_daily_data.py`) so the dashboard can show fresh data arriving. Credentials are stored only as env-var names; the value never leaves the server. No model is ever trained on your data — a sync triggers deterministic recomputation by the engine, rules and insight generators.
 - **Production and operating simulator** with industry-specific inputs.
 - **Scenario save, rerun, compare** with versioned, reproducible results.
 - **Rule-based decision engine** with hard-constraint precedence.
@@ -108,6 +109,76 @@ Five synthetic businesses are seeded — each clearly labeled as synthetic. See 
 
 Load: `python scripts/seed_demo.py` (idempotent; re-running it refreshes demo businesses).
 
+## Connected data sources (automatic updates)
+
+Connect a source once and let MoneyPlant pull new rows on a schedule. **No model is ever trained on your data** — a sync triggers deterministic recomputation by the financial engine, rule engine and insight generators. See [`docs/AI_AND_PRIVACY.md`](docs/AI_AND_PRIVACY.md) FAQ.
+
+### Configuration (backend/.env)
+
+```bash
+# Where file sources may live (path traversal and symlink escapes are rejected)
+FILE_SOURCE_ROOT=./sample_data
+
+# Background scheduler (a daemon thread in the backend process)
+SYNC_SCHEDULER_ENABLED=true
+SYNC_SCHEDULER_INTERVAL_SECONDS=300
+
+# A SQL connection URL. MoneyPlant stores only the NAME (see secret_ref), never the value.
+MY_DB_URL=postgresql://readonly_user:password@localhost:5432/mydb
+```
+
+> **Use a read-only database user.** MoneyPlant only issues `SELECT`, but defense in depth matters.
+
+### Add a source in the UI
+
+1. Open `http://localhost:3000/data`.
+2. Choose **File** or **SQL database**.
+3. **File**: enter a path relative to `FILE_SOURCE_ROOT` (e.g. `daily_transactions.xlsx`) and paste the column-mapping JSON.
+4. **SQL**: enter the table name, the incremental column (e.g. `updated_at` or `id`), and the **name** of the env var holding the URL (e.g. `MY_DB_URL`). Never paste the URL itself.
+5. Pick a schedule (`manual` / `daily` / `hourly`) and click **Create source**.
+6. Click **Test** to preview the first rows, then **Sync now**.
+
+### Run syncs outside the backend (Windows Task Scheduler / cron)
+
+```bash
+cd backend
+.venv\Scripts\activate
+
+# List configured sources
+python ..\scripts\sync_sources.py --list
+
+# Sync everything that is due (what Task Scheduler should run daily)
+python ..\scripts\sync_sources.py --all
+
+# Sync one source regardless of schedule
+python ..\scripts\sync_sources.py --source <SOURCE_ID>
+
+# Preview without writing
+python ..\scripts\sync_sources.py --all --dry-run
+```
+
+**Task Scheduler setup:** create a daily task with action
+`C:\path\to\moneyplant\backend\.venv\Scripts\python.exe` and argument
+`..\scripts\sync_sources.py --all`, "Start in"
+`C:\path\to\moneyplant\backend`. Disable `SYNC_SCHEDULER_ENABLED` if you want the CLI to be the only scheduler.
+
+### Demo: watch the dashboard update live
+
+```bash
+# 1. In the UI, add a file source pointing at daily_transactions.xlsx
+#    (created on first run) and click "Sync now".
+# 2. Append a new day of synthetic rows:
+cd backend
+.venv\Scripts\activate
+python ..\scripts\simulate_daily_data.py
+# 3. Back in the UI, click "Sync now" again. The freshness strip shows the
+#    new sync time and the dashboard, alerts and interpretations update.
+```
+
+`scripts/simulate_daily_data.py` appends one deterministic day of synthetic
+rows to both `sample_data/ext_invoices.db` (for the SQL source demo) and
+`sample_data/daily_transactions.xlsx` (for the file source demo).
+
 ## Tests
 
 ```bash
@@ -195,6 +266,11 @@ See [`docs/AI_AND_PRIVACY.md`](docs/AI_AND_PRIVACY.md). Highlights:
 ## Known limitations
 
 - **Synthetic financing catalog.** The 5 products are illustrative placeholders; eligibility thresholds and APRs are not real lender offers. UI is labelled `Illustrative products. Not a credit decision.`
+- **Data sources are single-host and file-system scoped.** File sources must resolve inside `FILE_SOURCE_ROOT` (default `sample_data/`); symlink escapes and `..` traversal are rejected. There is no cloud-object-store connector yet.
+- **SQL sources are `SELECT`-only and dialect-limited.** Only SQLite and Postgres are supported. The client never supplies SQL: you name a table and an incremental column, and MoneyPlant builds a parameterised, bounded, timed-out `SELECT`. **Use a read-only database user.** No JOINs, no aggregation, no views across schemas beyond the one you name.
+- **Sync de-duplication is per canonical row hash.** Two genuinely distinct transactions that are byte-identical across all canonical fields (date, amount, direction, currency, description, category) are treated as the same row and the second is skipped. This is deliberate and conservative — it never silently overwrites, it only declines to add.
+- **Syncs are batch, not streaming.** A source syncs on its schedule or on demand; there is no change-data-capture or webhook. The scheduler is a single daemon thread in the backend process, so a backend that is not running does not sync — use `scripts/sync_sources.py` from Task Scheduler for that case.
+- **XLSX is read as values, never as formulas**, and only the first sheet (or the one you name) is read.
 - **Financing affordability = simple annuity + DSCR.** No fees, no tax effect, no credit score, no covenant modelling. The matcher answers "could the monthly payment fit?" — nothing more.
 - **Dashboard sensitivity is observed-period, one-at-a-time.** It scales monthly inflows and outflows independently by ±25% / ±10% on the observed transactions. It is not a forecasting model and does not re-run the full scenario simulator. For full sensitivity, open the **Simulator** page and run a saved scenario with sensitivity enabled.
 - **Dashboard insights do not cross months.** The interpretation is computed over the [period_start, period_end_exclusive) window you select; pick a different range to test different months. No missing-data fabrication: an empty period returns an edge-case visual.

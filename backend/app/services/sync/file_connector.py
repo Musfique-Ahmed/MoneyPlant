@@ -149,21 +149,24 @@ class FileConnector:
         else:
             headers, sample_rows, raw = self._read_xlsx(content)
 
-        counter = {"n": 0}
-
-        def iterate() -> Any:
-            for idx, row in enumerate(raw, start=1):
-                counter["n"] += 1
-                canonical = {h: row.get(h, "") for h in headers}
-                fingerprint = row_dedup_payload({h: canonical[h] for h in headers})
-                yield RawRow(
-                    data={"_row_index": idx, **canonical, "_row_fingerprint": fingerprint},
-                    cursor=str(idx),
-                )
+        # Materialise the mapped rows once. The rows are bounded by
+        # ``upload_max_bytes`` for files, so holding them is safe and it
+        # lets us report an accurate ``rows_read`` and a correct preview
+        # count without deferring to a lazily-consumed generator.
+        payload_rows = [
+            {
+                "_row_index": idx,
+                **{h: raw[idx - 1].get(h, "") for h in headers},
+                "_row_fingerprint": row_dedup_payload(
+                    {h: raw[idx - 1].get(h, "") for h in headers}
+                ),
+            }
+            for idx in range(1, len(raw) + 1)
+        ]
 
         return ConnectorReadResult(
-            rows=iterate(),
-            rows_read=counter["n"],
+            rows=iter([RawRow(data=p, cursor=str(p["_row_index"])) for p in payload_rows]),
+            rows_read=len(payload_rows),
             content_sha256=sha,
             watermark_after=sha,
             headers=headers,

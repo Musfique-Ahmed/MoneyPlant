@@ -186,7 +186,7 @@ def test_run_due_sources_only_touches_due_sources(
     db_session.add_all([due, fresh])
     db_session.commit()
 
-    monkeypatch.setenv("MONEYPLANT_FILE_SOURCE_ROOT", str(root))
+    monkeypatch.setenv("FILE_SOURCE_ROOT", str(root))
 
     factory = db_session.get_bind  # placeholder; replaced below
     started = run_due_sources(lambda: db_session, now=NOW)

@@ -151,7 +151,7 @@ def test_resync_is_idempotent(db_session: Session, business, file_root: Path, mo
     from app.models.transaction import Transaction
     from app.services.sync.service import run_sync
 
-    monkeypatch.setenv("MONEYPLANT_FILE_SOURCE_ROOT", str(file_root))
+    monkeypatch.setenv("FILE_SOURCE_ROOT", str(file_root))
     _write_csv(
         file_root / "data.csv",
         [
@@ -186,7 +186,7 @@ def test_appended_rows_only_add_the_new_ones(db_session: Session, business, file
     from app.models.transaction import Transaction
     from app.services.sync.service import run_sync
 
-    monkeypatch.setenv("MONEYPLANT_FILE_SOURCE_ROOT", str(file_root))
+    monkeypatch.setenv("FILE_SOURCE_ROOT", str(file_root))
     _write_csv(file_root / "data.csv", [_row("2026-01-05", "100.00", "inflow", "sale a", "sales")])
     src = _make_file_source(db_session, business.id, file_root, "data.csv")
     run_sync(db_session, source_id=src.id, trigger="manual")
@@ -214,7 +214,7 @@ def test_replaced_file_reimports_new_content_only(db_session: Session, business,
     from app.models.transaction import Transaction
     from app.services.sync.service import run_sync
 
-    monkeypatch.setenv("MONEYPLANT_FILE_SOURCE_ROOT", str(file_root))
+    monkeypatch.setenv("FILE_SOURCE_ROOT", str(file_root))
     _write_csv(file_root / "data.csv", [_row("2026-01-05", "100.00", "inflow", "sale a", "sales")])
     src = _make_file_source(db_session, business.id, file_root, "data.csv")
     run_sync(db_session, source_id=src.id, trigger="manual")
@@ -243,7 +243,7 @@ def test_invalid_rows_are_quarantined_valid_rows_land(db_session: Session, busin
     from app.models.transaction import Transaction
     from app.services.sync.service import run_sync
 
-    monkeypatch.setenv("MONEYPLANT_FILE_SOURCE_ROOT", str(file_root))
+    monkeypatch.setenv("FILE_SOURCE_ROOT", str(file_root))
     _write_csv(
         file_root / "data.csv",
         [
@@ -370,7 +370,7 @@ def test_path_traversal_is_rejected(evil_path: str, file_root: Path, monkeypatch
     outside = file_root.parent / "outside.csv"
     outside.write_text("tx_date,amount\n2026-01-01,1\n", encoding="utf-8")
 
-    monkeypatch.setenv("MONEYPLANT_FILE_SOURCE_ROOT", str(file_root))
+    monkeypatch.setenv("FILE_SOURCE_ROOT", str(file_root))
     with pytest.raises(FileSourceError):
         FileConnector(path=evil_path, sheet_name=None, allowed_root=file_root)
 
@@ -495,7 +495,7 @@ def test_failed_sync_leaves_existing_data_intact(db_session: Session, business, 
     from app.models.transaction import Transaction
     from app.services.sync.service import run_sync
 
-    monkeypatch.setenv("MONEYPLANT_FILE_SOURCE_ROOT", str(file_root))
+    monkeypatch.setenv("FILE_SOURCE_ROOT", str(file_root))
     _write_csv(file_root / "data.csv", [_row("2026-01-05", "100.00", "inflow", "good", "sales")])
     src = _make_file_source(db_session, business.id, file_root, "data.csv")
     run_sync(db_session, source_id=src.id, trigger="manual")
@@ -523,7 +523,7 @@ def test_alerts_endpoint_reflects_newly_synced_rows(db_session: Session, busines
     """After a sync the deterministic alerts engine sees the new rows."""
     from app.services.sync.service import run_sync
 
-    monkeypatch.setenv("MONEYPLANT_FILE_SOURCE_ROOT", str(file_root))
+    monkeypatch.setenv("FILE_SOURCE_ROOT", str(file_root))
     rows = [
         _row("2026-01-05", "5000.00", "inflow", "big sale", "sales"),
         _row("2026-01-06", "9000.00", "outflow", "big cost", "materials"),
@@ -541,3 +541,135 @@ def test_alerts_endpoint_reflects_newly_synced_rows(db_session: Session, busines
     # Negative closing cash must raise the NEGATIVE_CASH alert.
     codes = {a.code for a in resp.alerts}
     assert "NEGATIVE_CASH" in codes
+
+
+# ---------------------------------------------------------------------------
+# 10. API-level regression for the full connect → sync → dashboard flow
+# ---------------------------------------------------------------------------
+
+
+def test_api_source_endpoints_round_trip(tmp_path, monkeypatch) -> None:
+    """POST create → test → sync → sync again, over real HTTP-shaped routes.
+
+    Regression guard for two bugs this flow previously hit:
+    a) ``rows_read`` was 0 because the connector's count was captured
+       before its generator was consumed;
+    b) the freshness route was mounted under the ``/sources`` prefix, so
+       ``GET /api/businesses/{id}/freshness`` 404'd.
+    """
+    import json as _json
+
+    from fastapi.testclient import TestClient
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from app.db.base import Base
+    import app.models  # noqa: F401
+    import app.db.session as db_session_mod
+
+    root = tmp_path / "inbox"
+    root.mkdir()
+    _write_csv(
+        root / "feed.csv",
+        [
+            _row("2026-03-01", "5000.00", "inflow", "sale a", "sales"),
+            _row("2026-03-02", "3000.00", "inflow", "sale b", "sales"),
+            _row("2026-03-03", "9000.00", "outflow", "supplier", "materials"),
+        ],
+    )
+
+    monkeypatch.setenv("FILE_SOURCE_ROOT", str(root))
+    # The lifespan starts the scheduler daemon thread, which opens its own
+    # session against the *real* database. Keep it off in tests.
+    monkeypatch.setenv("SYNC_SCHEDULER_ENABLED", "false")
+    # ``get_settings`` is lru_cached, so the flag must be applied before the
+    # first call — clear the cache to make the env change visible.
+    from app.core.config import get_settings
+
+    get_settings.cache_clear()
+
+    # A file-backed SQLite DB so every connection in the pool sees the same
+    # schema (an in-memory DB would create a fresh database per connection).
+    db_path = tmp_path / "api.db"
+    engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=engine)
+    S = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+    monkeypatch.setattr(db_session_mod, "engine", engine)
+    monkeypatch.setattr(db_session_mod, "SessionLocal", S)
+
+    from app.main import app
+
+    def _get_db():
+        db = S()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[db_session_mod.get_db] = _get_db
+    try:
+        with TestClient(app) as client:
+            biz = client.post(
+                "/api/businesses",
+                json={"name": "API Sync Co", "industry": "retail", "currency": "USD"},
+            ).json()
+            bid = biz["id"]
+
+            created = client.post(
+                "/api/sources",
+                json={
+                    "business_id": bid,
+                    "type": "file",
+                    "name": "feed",
+                    "config": {"path": "feed.csv"},
+                    "column_mapping": {
+                        "tx_date": "tx_date", "amount": "amount",
+                        "direction": "direction", "category": "category",
+                        "currency": "currency", "description": "description",
+                        "payment_status": "payment_status",
+                    },
+                    "schedule": "daily",
+                    "enabled": True,
+                },
+            )
+            assert created.status_code == 201, created.text
+            src = created.json()
+            # The read shape must not leak the credential pointer.
+            assert "secret_ref" not in src
+
+            probe = client.post(f"/api/sources/{src['id']}/test").json()
+            assert probe["status"] == "ok"
+            # Regression (a): the preview count must reflect real rows.
+            assert probe["row_count_preview"] == 3
+
+            first = client.post(f"/api/sources/{src['id']}/sync").json()
+            assert first["status"] == "ok"
+            assert first["rows_read"] == 3
+            assert first["rows_added"] == 3
+            assert first["rows_rejected"] == 0
+
+            second = client.post(f"/api/sources/{src['id']}/sync").json()
+            assert second["rows_added"] == 0
+            assert second["rows_skipped_duplicate"] == 3
+
+            runs = client.get(f"/api/sources/{src['id']}/runs").json()
+            assert len(runs["items"]) == 2
+
+            # Regression (b): this path must exist under /api/businesses.
+            fresh = client.get(f"/api/businesses/{bid}/freshness")
+            assert fresh.status_code == 200, fresh.text
+            body = fresh.json()
+            assert body["last_status"] == "ok"
+            assert body["source_count"] == 1
+            assert body["any_stale"] is False
+            assert "last_sync_text" in body
+
+            # The recomputation endpoints see the synced rows.
+            alerts = client.get(f"/api/businesses/{bid}/alerts").json()
+            assert alerts["monthly_cash"], "alerts must see the synced rows"
+
+            # No credential anywhere in the responses.
+            blob = _json.dumps([src, probe, first, second, runs, body], default=str)
+            assert "secret_ref" not in blob
+    finally:
+        app.dependency_overrides.clear()

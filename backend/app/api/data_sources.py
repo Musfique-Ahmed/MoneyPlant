@@ -355,15 +355,19 @@ def _safe_error(msg: str) -> str:
     return "connect_failed"
 
 
-__all__ = ["router", "DataSourceRead"]
+__all__ = ["router", "business_router", "DataSourceRead"]
 
 
 # ---------------------------------------------------------------------------
 # Dashboard freshness strip
 # ---------------------------------------------------------------------------
 
+# A separate router because the freshness strip is addressed by business
+# (``/api/businesses/{id}/freshness``), not by source (``/api/sources/...``).
+business_router = APIRouter(prefix="/businesses", tags=["data-sources"])
 
-@router.get("/{business_id}/freshness")
+
+@business_router.get("/{business_id}/freshness")
 def freshness(
     business_id: str, db: Session = Depends(get_db),
 ) -> dict[str, object]:

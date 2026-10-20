@@ -91,6 +91,8 @@ The page at `/settings/privacy` exposes:
 - Imported files: stored as `ImportJob` records. The original uploaded bytes are kept on disk only if the user has not configured a cleanup policy (default: keep file metadata, discard raw bytes after 30 days). Configurable.
 - Generated explanations: kept with the `DecisionReport` for reproducibility. Cleared when the report is deleted.
 - External API logs: outside this application's control. The settings page links to each provider's data-retention policy.
+- Connected data sources: MoneyPlant stores only the **mapping and the pointer**, never the credential. `DataSource.secret_ref` holds the *name* of an environment variable (for example `MY_DB_URL`); the value — including the password — lives only in the server process environment. It is never written to the database, never returned by any API response, and never written to a log. File sources must resolve inside a configured allowed directory.
+- Transactions pulled by a sync are stored in the local database alongside a row hash used for de-duplication. Deleting a data source leaves the imported transactions in place (their provenance becomes `NULL`) so historical reports stay reproducible.
 
 ## 9. What this design is NOT
 
@@ -98,3 +100,26 @@ The page at `/settings/privacy` exposes:
 - It is not a guarantee about provider-side retention. Users choosing an API provider are informed.
 - It is not an end-to-end encrypted system. A future iteration could add homomorphic or TEE-based inference, but it is out of scope.
 - It is not a model-evaluation framework. LLM responses are validated for shape, not for correctness; correctness comes from the deterministic engine.
+
+## FAQ
+
+### Do you train models on my data?
+
+**No.** No model is ever trained or fine-tuned on your business data.
+
+"Staying current" in MoneyPlant means **incremental import followed by deterministic recomputation**. It does not mean learning. Here is exactly what happens on every sync:
+
+1. **Connector read.** A file is read from the configured allowed directory, or a SQL table is read with a parameterised, `SELECT`-only statement that filters on the stored incremental watermark and is bounded by a row limit and a per-connection statement timeout. The client never supplies SQL.
+2. **De-duplication.** Every row is hashed over its canonical fields. A database-level unique index on `(business_id, source_row_hash)` guarantees a re-sync can never write the same row twice.
+3. **Engine recomputation.** New rows trigger the financial engine, rule engine, alerts engine, financing matcher and insight generators to recompute. Every number and every plain-English interpretation you see is produced from the updated inputs by these deterministic functions.
+4. **Explanation only.** Laya and the LLM receive **already-computed results** for explanation. They never see raw transaction descriptions, they never compute a figure, and they are never consulted during a sync.
+
+In local mode (the default, Ollama), nothing leaves the host at all — not during a sync, not during an explanation.
+
+### Can I see what gets sent to the LLM?
+
+The Settings page lists which fields go into the explanation context for each provider mode. The context is built from compact computed metrics, scenario outcomes, rule summaries and your stated question — never the raw transaction list, never file contents, never credentials.
+
+### What happens if a source fails to sync?
+
+The run is recorded with status `failed` and a short, safe reason. Existing transactions are left untouched: each row is written inside a transaction, so a failure can never leave half-imported data. Invalid rows are quarantined with their reasons rather than blocking the whole sync.
